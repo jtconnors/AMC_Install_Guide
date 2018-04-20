@@ -1,0 +1,722 @@
+1s2345678901234567890123456789012345678901234567890123456789012345678901234567890
+
+Installing Java AMC 2.7 on Mimimal Oracle Linux 7 with MySQL 5.7.19
+
+*******************************************************************
+Part I: Installing and Configuring Oracle Linux 7 in a VirtualBox VM
+
+1. Install VirtualBox.  For Windows 10 support, install 5.0.3 or greater
+
+2. Download Oracle Linux 7 ISO.  As of the time of this document creation, The 
+   ISO is called V834394-01.iso
+	
+3. Create New VirtualBox VM.  This instance is called
+   "OL7 Minimal AMC 2.7 MySQL 5.7.19"
+   - 2048MB Base Memory Allocated to this instance
+   - 12GB Fixed storage allocated to this instance
+   - In Settings->Network, Set Adapter 1 to "Bridged Adapter" as we need to
+     assign a static IP to this VM
+
+4. Start up "OL7 Minimal AMC 2.7 MySQL 5.7.19" VirtualBox VM,
+   choose V834394-01.iso as startup disk
+
+5. Linux Install:
+   - Change Installation Destination
+      A. Select "I will configure partitioning", click "Done" in upper left
+      B. Next Page: 
+         Select "Standard Partition" from partitioning scheme drop down menu
+         then "Click here to create them automatically"
+         Click "Done" and accept changes
+
+   - Change Network & Host Name (this is just a sample, yours will be different)
+      A. Set Host name (bottom of screen) to amc-test.jtconnors.com
+      B. Set on/off slider to ON
+      C. Click "Configure" button on bottom right
+      D. Editing Window pops up, click on IPv4 Settings
+           Set Method to "Manual"
+            Add Address: 192.168.1.68
+            Netmask: 255.255.255.0
+            Gateway: 192.168.1.1
+            DNS Servers: 192.168.1.1
+         Click "Save" button
+      E. Change "Host Name:" textfield to read:  amc-test.jtconnors.com
+      F. Click "Done" button
+
+   - Software Selection
+      A. Make sure "Minimal Install" is selected
+      
+   - Click "Begin Installation"
+
+6. During Install you can set root password and create a user
+   A. Set root password to "root"
+   B. Create User
+      Full Name: AMC User
+      User Name: amc
+      Password: amc
+
+7.  Once install is complete and Oracle Linux is booted, log in as user "root"
+
+8.  IMPORTANT: Edit /etc/hosts and add an entry for your host name
+
+    A. $ sudo vi /etc/hosts
+
+    B. Append this line:
+
+       192.168.1.68	amc-test.jtconnors.com
+
+       to the end of the file.
+
+    C. Confirm network is functioning
+
+       $ ping amc-test.jtconnors.com
+       
+10. Disable the Firewall
+
+   A. Check status of firewall
+
+   $ systemctl -a | grep firewall
+   firewalld.service
+             loaded active   running   firewalld - dynamic firewall daemon
+
+   B. Kill the Firewall
+
+   # systemctl kill firewalld
+
+   C. Disable the Firewall
+
+   # systemctl disable firewalld
+   [sudo] password for amc: 
+   rm '/etc/systemd/system/dbus-org.fedoraproject.FirewallD1.service'
+   rm '/etc/systemd/system/basic.target.wants/firewalld.service'
+
+   # systemctl -a | grep firewall
+
+
+End Part I
+********************************************************************
+
+********************************************************************
+Part II Setting Up MySQL 5.7.19
+
+These instructions are gleaned from the MySQL 5.7 Reference Manual, in
+particular:
+
+Installing MySQL on Unix/Linux Using Generic Binaries
+https://dev.mysql.com/doc/refman/5.7/en/binary-installation.html
+
+
+NOTE: Installation instruction between dot releases of MySQL 5.7 (e.g. 5.7.6
+      vs. 5.7.19) do have some differences.  These instructions are specific
+      to MySQL 5.7.19.
+
+1. Log on as root user
+
+2. MySQL has a dependency on the libaio library.  For minimal Oracle Linux 7
+   it is not installed.  Use 'yum' to install it.
+
+   # yum install libaio
+
+3. Download the "Linux - Generic (glibc 2.12) (x86, 64-bit), TAR" download
+   from the MySQL download (https://dev.mysql.com/downloads/mysql/) site.
+   The name of the file for this example is:
+
+   mysql-5.7.19-linux-glibc2.12-x86_64.tar
+
+4. Choose a directory to install. The default /usr/local/ directory is
+   highly recommended.  Choosing a directory other than the default will
+   require subsequent steps to be modified.  Issue the following commands:
+
+   # groupadd mysql
+   # useradd -r -g mysql -s /bin/false mysql
+   # cd /usr/local
+   # tar xvf /path/to/mysql-5.7.19-linux-glibc2.12-x86_64.tar
+   
+5. 2 tar files are extracted from the original tar download.  Extract
+   the mysql-5.7.19-linux-glibc2.12-x86_64.tar.gz tarball and once installed,
+   remove the download files.
+     
+   # tar xvf mysql-5.7.19-linux-glibc2.12-x86_64.tar.gz
+   # rm mysql*gz
+   # ln -s mysql-5.7.19-linux-glibc2.12-x86_64 mysql
+
+6. Create mysql-files/ directory and change ownership of everything under 
+   the mysql/ directory to mysql
+
+   # cd mysql
+   # mkdir mysql-files
+   # chmod 750 mysql-files	
+   # chown -R mysql:mysql .
+
+7. Create a file called /etc/my.cnf with the following content:
+
+[mysqld]
+max_allowed_packet=100M
+innodb_log_file_size=768M
+
+8. Set permission and ownership of /etc/my.cnf
+
+   # chmod 750 /etc/my.cnf
+   # chown mysql:mysql /etc/my.cnf
+
+9. Initialize mysql.  Specify the location of the my.cnf file with the
+   --defaults-file directive (this must be the first argument). The 
+   --initialize-insecure directive instructs MySQL not to generate a
+   random root password. That should take place immediately afterwards.
+
+   # bin/mysqld --defaults-file=/etc/my.cnf --initialize-insecure --user=mysql
+   # bin/mysql_ssa_rsa_setup
+
+   # chown -R root .
+   # chown -R mysql:mysql data mysql-files
+   # bin/mysqld_safe --user=mysql &
+
+10. Assign a root password to MySQL
+
+   # mysql -u root --skip-password
+
+   mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';
+   mysql> exit
+
+   # mysql -u -root -p
+   Enter password:
+
+   mysql> exit
+
+11. Set up MySQL to auto start.
+
+   # cp support-files/mysql.server /etc/init.d/mysql.server
+   # chmod 750 /etc/init.d/mysql.server
+   # chkconfig --add mysql.server
+   # chkconfig mysql.server on
+
+   The DB will start on next machine boot.  Stop the original mysqld_safe
+   instance and restart the mysqld daemon.
+
+   # service mysql.server stop
+   # service mysql.server stop
+
+12. Create the amc2 MySQL user, the amc2 database and grant permissions.  This
+    user is specific to MySQL and is not another Linux user.
+
+    # bin/mysql -u -root -p
+    Enter password:
+
+    mysql> create user 'amc2' identified by 'amc2';
+    mysql> create database amc2;
+    mysql> grant all on amc2.* to 'amc2';
+    mysql> exit
+
+13. Edit ~/.bash_profile to put mysql in it's PATH
+
+   # vi ~/.bash_profile
+
+   PATH=$PATH:$HOME/bin:/usr/local/mysql/bin
+
+14. Confirm max_allowed_packet and innodb_log_file_size has been modified
+    according to the /etc/my.cnf settings:
+
+   # mysql -u root -p
+   Enter password:
+
+   mysql> select @@global.max_allowed_packet;
+
+   mysql> select @@global.innodb_log_file_size;
+
+End Part II
+********************************************************************
+
+********************************************************************
+Part III Installing WebLogic Server
+
+As taken (with some modifications) from http://docs.oracle.com/javacomponents/advanced-management-console-2/install-guide/wlssetup.htm
+
+1. Login as the 'amc' user.  If it hasn't already been created (Section I),
+   please do so now, then log in.
+
+2. Download and install the latest Java SE Development Kit.  As of this
+   document's creation, the version is JDK 8u141
+
+   $ cd
+   $ tar xvf jdk-8u141-linux-x64.tar.gz
+
+3. Create a symbolic link from the installed jDK directory to on called jdk8
+
+   $ ln -s jdk1.8.0_141 jdk8
+
+4. Append the following to ~amc/.bash_profile file
+   
+   export JDK_HOME=$HOME/jdk8
+   export JAVA_HOME=$JDK_HOME
+   export PATH=$JAVA_HOME/bin:$PATH
+
+   Without having to log out, you can get Java in the amc user's path by
+   typing:
+
+   $ . .bash_profile
+
+   Verify Installation
+
+   $ java -version
+
+5. IMPORTANT: WebLogic start up time can be drastically improved on Linux by
+   making the following modification.  The standard /dev/random device 
+   that WebLogic requires for things like key generation and session IDs
+   requires a certain amount of entropy (access to sources of random data)
+   and will block until that is achieved.
+
+   See http://oraclemiddlewareblog.com/2012/10/17/how-to-improve-weblogic-servers-startup-time/
+
+   a. Edit the jdk8/jre/lib/security/java.security file and set:
+
+   securerandom.source=file:/dev/./urandom
+
+6. IMPORTANT: set the umask to 027 prior to installing Web Logic
+
+   $ umask 027
+
+7. Download Oracle WebLogic 12c Software from oracle.com.  In this instance,
+   we choose fmw_12.2.1.0.0_wls_Disk1of1.zip
+
+8. From the /home/amc directory unzip the WebLogic tarball.  
+
+   7a. Note:  the unzip package may need to be installed as this is a minimal
+       Linux install.
+ 
+       $ sudo yum install unzip
+
+   $ unzip fmw_12.2.1.0.0_wls_Disk1of1.zip
+
+   This will extract a jar file called fmw_12.2.1.0.0_wls.jar
+
+9. Create a file called /home/amc/oraInst.loc with the following contents:
+
+
+inventory_loc=/home/amc/Oracle_Home
+inst_group=amc
+
+
+10. Create a file called /home/amc/responseFile.txt with the following contents:
+
+
+[GENERIC]
+
+#The oracle home location. This can be an existing Oracle Home or a new Oracle Home
+ORACLE_HOME=/home/amc/Oracle_Home
+
+#Set this variable value to the Installation Type selected. e.g. WebLogic Server, Coherence, Complete with Examples.
+INSTALL_TYPE=WebLogic Server
+
+#Provide the My Oracle Support Username. If you wish to ignore Oracle Configuration Manager configuration provide empty string for user name.
+MYORACLESUPPORT_USERNAME=
+
+#Provide the My Oracle Support Password
+MYORACLESUPPORT_PASSWORD=<SECURE VALUE>
+
+#Set this to true if you wish to decline the security updates. Setting this to true and providing empty string for My Oracle Support username will ignore the Oracle Configuration Manager configuration
+DECLINE_SECURITY_UPDATES=true
+
+#Set this to true if My Oracle Support Password is specified
+SECURITY_UPDATES_VIA_MYORACLESUPPORT=false
+
+#Provide the Proxy Host
+PROXY_HOST=
+
+#Provide the Proxy Port
+PROXY_PORT=
+
+#Provide the Proxy Username
+PROXY_USER=
+
+#Provide the Proxy Password
+PROXY_PWD=<SECURE VALUE>
+
+#Type String (URL format) Indicates the OCM Repeater URL which should be of the format [scheme[Http/Https]]://[repeater host]:[repeater port]
+COLLECTOR_SUPPORTHUB_URL=
+
+
+11. Perform a silent install of WebLogic server with the following invocation:
+
+   $ java -jar fmw_12.2.1.0.0_wls.jar -silent -novalidation -responseFile /home/amc/responseFile.txt -invPtrLoc /home/amc/oraInst.loc
+
+
+12. Define MW_HOME and append the following onto the ~amc/.bash_profile file.
+    This will define environment variables particular to your WebLogic
+    installation.
+
+export MW_HOME=$HOME/Oracle_Home
+. $MW_HOME/oracle_common/common/bin/commEnv.sh
+
+
+13. Execute the following commands to set up a proper environment so that
+    WebLogic 12c can be further configured.
+
+   $ . ~amc/.bash_profile
+   $ . $WL_HOME/server/bin/setWLSEnv.sh
+
+14. Create (and start) the WebLogic AdminServer
+
+   First create the base_domain directory
+
+   $ cd ~/Oracle_Home
+   $ mkdir -p user_projects/domains/base_domain
+
+   The following command, when run for the first time, will create the
+   AdminServer instance inside the base_domain if it doesn't exist. 
+   Then it will proceed to start the WebLogic server.  The '&' at the end of
+   the command will put this process in the background
+   so that you can continue to use the console for further setup.
+
+   $ java -Dweblogic.management.username=weblogic -Dweblogic.management.password=AMC2demo -Dweblogic.Domain=base_domain -Dweblogic.Name=AdminServer -Dweblogic.ListenPort=7001 -Dweblogic.management.GenerateDefaultConfig=true weblogic.Server &
+   
+
+15. You should see messages appear on the console like the following:
+
+    <Starting WebLogic Server with Java HotSpot(TM) 64-Bit VM Version ...>
+    ...
+    <Generating new domain directory in /home/amc/Oracle_Home.>
+
+    Ultimately, the following message should appear indicating that the
+    WebLogic AdminServer is configured and started:
+
+    <Server state changed to RUNNING.>
+
+    From here, with the WebLogic AdminServer running, we can log into the
+    WebLogic Admin Console from a browser to further configure WebLogic
+    for Java AMC.
+
+    The URL should look as follows (our IP addr is 192.168.1.68, yours is
+    almost certainly different)
+
+    http://192.168.1.68:7001/console
+
+    Username: weblogic
+    Password: AMC2demo
+
+16. Once logged into the WebLogic Admin Console, from the domain structure
+    block to the left, go to Environment and select Machines. Create a new
+    machine.
+
+      Name: AMC-Machine
+      Machine OS: Unix
+
+   a. Next, edit the Listen Address, set to localhost
+
+   b. Leave Type SSL, and Listen Port 5556
+
+   c. Click Finish
+
+17. To create a new server instance associated with AMC-Machine, select
+    Environment -> Machines from the domain structure block to the left.
+
+   a. AMC-Machine should show up in the Summary of Machines.  Click on 
+      the AMC-Machine Link.
+
+   b. In the "Settings for AMC-Machine" screen, click on the Servers tab.
+
+   c. Click "Add" button
+
+   d. In the "Add a Server to Machine" screen, choose the "Create a new server,
+      and associate it with this machine" option.
+
+      Click Next
+
+   e. In the "Add a Server to a Machine" screen, set:
+       Server Name to AMC-Server
+       Server Listen Address: 192.168.1.68  (yours will be different)
+       Server Listen Port: 8007
+
+       Click "Finish"
+
+   f. From Environment->Servers click the just-created AMC-Server link
+
+   g. In the "Settings for AMC-Server" screen, set:
+       Machine: AMC-Machine
+       Check Listen Port Enabled
+       Listen Port: 8007
+       Listen Address: <leave alone>
+       Check SSL Listen Port Enabled
+       SSL Listen Port: 8008
+
+       Click "Save"
+
+18. Return to the console terminal (we should have access to the terminal 
+    because the command to start the WebLogic server was put in the 
+    background with an '&') and edit the following file: 
+
+    $ vi /home/amc/Oracle_Home/nodemanager/nodemanager.properties
+
+    look for the NativeVersionEnabled property (should be nearthe middle)
+    and change its value to:
+
+        set NativeVersionEnabled=false
+
+19. Start the NodeManager process as follows (with the '&' character included):
+
+    $ /home/amc/Oracle_Home/bin/startNodeManager &
+
+20. From Environment->Servers click the "Control" tab then the
+    checkbox next to the just-created AMC-Server link, then click the
+    "Start" button.  This should start without errors.
+
+    You can refresh the "Summary of Servers" browser page until the
+    state of AMC-Server is set to 'RUNNING'.
+
+21. Errors in WebLogic Server may occur if the Java transaction time out
+    is not set to a long enough value for the database access. 
+    (http://docs.oracle.com/javacomponents/advanced-management-console-2/install-guide/wlssetup.htm#A1147784)
+
+    A. From the Domain Structure block in the left panel, navigate to
+       Services and select JTA from services.
+
+    B. Select the Configurations tab and then click the subtab JTA.
+
+    c. On the Java Transaction API (JTA) page, enter the Timeout Seconds
+       value as 300.
+
+    D. Click Save
+
+End Part III
+********************************************************************
+
+********************************************************************
+Part IV Deploy AMC 2.7 Application
+
+1. From the WebLogic Admin Console, deploy the jax-rs library
+
+   A. From the domain structure block to the left, go to Environment and
+      select Deployments
+
+   B. Click "Install" button
+
+   C. Set Path to /home/amc/Oracle_Home/wlserver/common/deployable-libraries
+
+   D. Select jax-rs-2.0.war, then "Next"
+
+   E. Select "Install this deployment as a library", then "Next"
+
+   F. Click on the AMC-Server checkbox, then "Next"
+
+   G. Click "Finish"
+
+2. Download Java AMC 2.7 web application (JavaAMC-2_7.ear) from oracle.com
+   and Deploy it.  
+
+   Note: The download may be saved with the extension .zip.  Rename the zip  
+   file with the .ear extension using the command:
+   $ mv JavaAMC-2_7.zip JavaAMC-2_7.ear
+
+   A. From the domain structure block to the left, go to Environment and
+      select Deployments
+
+   B. B. Click "Install" button
+
+   C. Set Path to location of JavaAMC-2_7.ear file
+
+   D. Select JavaAMC-2_7.ear, click "Next"
+
+   E. Select "Install this deployment as an application", then "Next"
+
+   F. Click on the AMC-Server checkbox, then "Next"
+
+   G. Click "Finish"
+
+End Part IV
+********************************************************************
+
+********************************************************************
+Part V Configure WebLogic Server with MySQL
+
+As taken (with some modifications) from http://docs.oracle.com/javacomponents/advanced-management-console-2/install-guide/wlssetup.htm
+
+1. Open WebLogic Admin Console
+
+   http://192.168.1.68:7001/console  (Your IP address will be different)
+   Username: weblogic
+   Password: AMC2demo
+
+2. From the domain structure block to the left, go to Services and
+   select Data Sources
+
+3. Click "New" pull down menu, select "Generic Data Source"
+
+4. Set
+
+   Name: amc2 mysql
+   JNDI Name: amc2/db/mysql
+   Database Type: MySQL
+
+   Click "Next"
+
+5. Select "MySQL's Driver (Type4) Versions: using com.mysql.jdbc.Driver" as
+   the Database Driver
+
+   Click "Next"
+
+6. In the Tranactions section, unselect "Supports Global Transactions"
+
+   Click "Next"
+
+7. In Connection Properties, set:
+   Database Name: amc2
+   Host Name: 192.168.1.68  (yours will be different)
+   Port: 3306
+   Database User Name: amc2
+   Password: amc2
+
+   Click "Next"
+   Click "Test Configuration" to make sure everything's ok
+   Click "Finish"
+
+8. From the domain structure block to the left, go to Services and
+   select Data Sources.  Click on the recently created "amc2 mysql" link
+
+9. Click on the "Targets" tab and select the AMC-Server checkbox.
+
+   Click "Save"
+
+
+End Part V
+********************************************************************
+
+********************************************************************
+Part VI First Time Login to AMC 2.7 Server Application
+
+1. Go to https://192.168.1.68:8008/amcwebui  (your IP addr will be different)
+
+2. Get "Welcome to Java AMC 2.7" Screen, Click Next
+
+3. Data Source should be set up already, Click Next
+
+4. Server Hostname: 192.168.1.68 (yours will be different), Click Next
+
+5. Mail Notifications, CLick Next
+
+6. Java Usage Port: 19870, Click Next
+
+7. Login info:  (choose whatever you want)
+
+   Administrator email: amcadmin@jtconnors.com
+   Administrator Password: AMC2demo, Click Next
+
+7. Click Initialize
+
+End Part VI
+********************************************************************
+
+********************************************************************
+Part VII Configure Linux to autostart/autostop: WebLogic, the node 
+manager, and the AMC-Server.
+
+As taken (with some modifications) from https://www.headdesk.me/WebLogic
+and courtesy of Brian Cox
+
+1. Create the file /etc/systemd/system/wl-admin.service
+
+   a. Insert the following contents: 
+
+# /etc/systemd/system/wl-admin.service
+[Unit]
+Description=WebLogic Admin Server
+After=syslog.target network.target
+
+[Service]
+Environment="DOMAIN_HOME=/home/amc/Oracle_Home"
+#PIDFile=/opt/Oracle_Home/user_projects/domains/hr-dev/nodemanager/nodemanager.process.id
+ExecStart=/home/amc/Oracle_Home/bin/startWebLogic.sh
+ExecStop=/home/amc/Oracle_Home/bin/stopWebLogic.sh
+# ExecStartPost=
+Restart=on-abort
+User=amc
+
+[Install]
+WantedBy=multi-user.target
+
+   b. $ sudo chmod 755 /etc/systemd/system/wl-admin.service
+
+
+2. Create the file /etc/systemd/system/wl-nodemanager.service
+
+   a. Insert the following contents: 
+
+# /etc/systemd/system/wl-nodemanager.service
+[Unit]
+Description=WebLogic Node Manager
+After=syslog.target network.target wl-admin.service
+
+[Service]
+PIDFile=/home/amc/Oracle_Home/nodemanager/nodemanager.process.id
+ExecStart=/home/amc/Oracle_Home/bin/startNodeManager.sh
+ExecStop=/home/amc/Oracle_Home/bin/stopNodeManager.sh
+# ExecStartPost=
+Restart=on-abort
+User=amc
+
+[Install]
+WantedBy=multi-user.target 
+
+   b. $ sudo chmod 755 /etc/systemd/system/wl-nodemanager.service
+
+3. Create the file /etc/systemd/system/wl-amc-server.service
+
+   a. Insert the following contents:
+
+[Unit]
+Description=WebLogic AMC Server
+After=syslog.target network.target wl-admin.service wl-nodemanager
+
+[Service]
+Environment="DOMAIN_HOME=/home/amc/Oracle_Home"
+Environment="ADMIN_URL=http://192.168.1.68:7001"
+Environment="SERVER_NAME=AMC-Server"
+Environment="USER_MEM_ARGS=-Xmx4096m"
+#Environment="SERVER_ROLE=Managed"
+User=amc
+
+ExecStart=/home/amc/Oracle_Home/bin/startManagedWebLogic.sh
+ExecStop=/home/amc/Oracle_Home/bin/stopManagedWebLogic.sh
+# ExecStartPost=
+#Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
+
+   b. $ sudo chmod 755 /etc/systemd/system/wl-amc-server.service
+
+4. We need to edit Oracle_Home/bin/startManagedWebLogic.sh to include the
+   WebLogic user and password.  Do the following:
+
+   $ cd Oracle_Home/bin
+   $ cp startManagedWebLogic.sh startManagedWebLogic.sh.ORIG
+
+   Edit startManagedWebLogic.sh and set:
+
+   WLS_USER="weblogic"
+   WLS_PW="AMC2demo"
+
+5. Issue the Systemd services daemon reload command to incorporate the two new 
+web logic servies:
+
+   $ sudo systemctl daemon-reload
+
+6. Enable the three new services using the systemctl command:
+
+   $ sudo systemctl enable wl-admin
+   $ sudo systemctl enable wl-nodemanager
+   $ sudo systemctl enable wl-amc-server
+
+7. Verify the services are enabled.  Using the Systemd status command, this 
+information is displayed in the Loaded status line.  
+
+   $ systemctl status wl-admin
+   $ systemctl status wl-nodemanager
+   $ systemctl status wl-amc-server
+
+8. Reboot the Linux node and verify WebLogic, the Node Manager, and the server
+AMC-Server are started.
+
+
+End Part VIII
+********************************************************************
+
+

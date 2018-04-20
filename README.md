@@ -14,11 +14,16 @@ more important steps include:
 
 4. Configuration and integartion of these components.
 
-This project contains an Installation Guide (MS-Word document) that walks you
-through the steps, with screenshots included, needed to install the various
-Java Advanced Management Console components.
+This project contains versions of an Installation Guide (MS-Word) documents
+that walks you through the steps, with screenshots included, needed to install
+the various Java Advanced Management Console components.
 
-This tag specifically contains an install guide for Java AMC 2.9 on Windows
-(either desktop or server) with a MySQL database.  Additionally,  scripts 
-are provided to ease the task of creating the necessary Windows services
-that will start up the Java AMC components at boot time.
+This tag specifically contains an install guides for Java AMC 2.10 on Windows
+(desktop or server) with either a MySQL or Oracle 12c database. The
+specific install guides can be found in the ...with_mysql/... and
+...with_oracledb/... directories respectively.
+
+Additionally,  scripts are provided to ease the task of creating the necessary
+Windows services that will start up the Java AMC components at boot time.
+They are referenced in the install documents and can be found in the
+...scripts/...  directory.
