@@ -18,7 +18,7 @@ This project contains versions of an Installation Guide (MS-Word) documents
 that walks you through the steps, with screenshots included, needed to install
 the various Java Advanced Management Console components.
 
-This tag specifically contains an install guides for Java AMC 2.10 on Windows
+This tag specifically contains an install guides for Java AMC 2.11 on Windows
 (desktop or server) with either a MySQL or Oracle 12c database. The
 specific install guides can be found in the ...with_mysql/... and
 ...with_oracledb/... directories respectively.
